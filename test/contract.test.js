@@ -17,12 +17,12 @@ global.localStorage = {
 };
 
 const files = [
-  'js/core/config.js', 'js/core/utils.js',
-  'js/data/items.js', 'js/data/recipes.js', 'js/data/buildings.js',
-  'js/data/research.js', 'js/data/maps.js',
-  'js/game/map.js', 'js/game/scheduler.js', 'js/game/railway.js', 'js/game/contracts.js', 'js/game/maintenance.js',
-  'js/game/sim.js', 'js/game/researchmgr.js', 'js/game/stats.js', 'js/game/save.js',
-  'js/game/blueprint.js', 'js/game/game.js',
+  'src/engine/config.js', 'src/engine/utils.js',
+  'src/engine/items.js', 'src/engine/recipes.js', 'src/engine/buildings.js',
+  'src/engine/research.js', 'src/engine/maps.js',
+  'src/engine/map.js', 'src/engine/scheduler.js', 'src/engine/railway.js', 'src/engine/contracts.js', 'src/engine/maintenance.js',
+  'src/engine/sim.js', 'src/engine/researchmgr.js', 'src/engine/stats.js', 'src/engine/save.js',
+  'src/engine/blueprint.js', 'src/engine/game.js',
 ];
 for (const f of files) {
   vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f });

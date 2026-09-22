@@ -629,7 +629,7 @@ FG.Renderer = (() => {
     }
 
     // 故障覆盖层（红色闪烁警示，优先于状态高亮）
-    if (b.broken) {
+    if (b.broken && game) {
       const blink = Math.floor(performance.now() / 300) % 2 === 0;
       ctx.fillStyle = blink ? 'rgba(224,70,70,0.55)' : 'rgba(224,70,70,0.3)';
       ctx.fillRect(px + 1, py + 1, t - 2, t - 2);
@@ -638,7 +638,7 @@ FG.Renderer = (() => {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('🛠', cx, cy);
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    } else if (game.maintenance && game.maintenance.enabled
+    } else if (game && game.maintenance && game.maintenance.enabled
                && game.maintenance.wearsOut(b) && game.maintenance.wearRatio(b) >= C().WEAR_WARN) {
       // 高磨损黄角标
       const ratio = game.maintenance.wearRatio(b);
@@ -647,7 +647,7 @@ FG.Renderer = (() => {
     }
 
     // 状态覆盖层
-    if (game.showStatus && b.status) {
+    if (game && game.showStatus && b.status) {
       const col = b.status === 'starving' ? C().COLORS.overlayRed
         : b.status === 'blocked' ? C().COLORS.overlayOrange
         : b.status === 'working' ? C().COLORS.overlayGreen : null;
@@ -958,6 +958,9 @@ FG.Renderer = (() => {
     return cv;
   }
 
+  // ==================== 缓存小图标（UI 用） ====================
+  // 注意：drawBuilding/drawBelt/drawRailTile 均使用模块级全局 ctx，
+  // 生成图标时临时把全局 ctx 指向图标 canvas（渲染器 init 前也可安全调用）
   function buildingIcon(type, size, dir) {
     const k = type + '_' + size + '_' + (dir || 0);
     if (iconCache[k]) return iconCache[k];
@@ -967,6 +970,8 @@ FG.Renderer = (() => {
     const tmp = { def: FG.Buildings.byId(type), type, x: -1, y: -1, dir: dir || 0, items: [], held: null, level: 0, fluidType: null, status: 'idle', slots: { inputs: {}, outputs: {} }, chest: [], rr: 0 };
     // 等比缩放到图标尺寸
     const scale = size / 32;
+    const prevCtx = ctx;
+    ctx = c2;
     c2.save();
     c2.scale(scale, scale);
     c2.translate(0, 0);
@@ -974,6 +979,7 @@ FG.Renderer = (() => {
     else if (tmp.type === 'rail' || tmp.def.railStation) drawRailTile(tmp, 0, 0, 32);
     else drawBuilding(tmp, 0, 0, 32);
     c2.restore();
+    ctx = prevCtx;
     iconCache[k] = cv;
     return cv;
   }

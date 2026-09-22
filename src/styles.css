@@ -101,7 +101,7 @@ button.danger:hover { background: #4d2c2c; }
   flex: 0 0 auto;
 }
 .item-chip .qty { font-family: var(--mono); color: var(--text); }
-.item-chip canvas { display: block; }
+.item-chip canvas, .item-chip img { display: block; }
 
 /* ============ 主布局 ============ */
 #layout {

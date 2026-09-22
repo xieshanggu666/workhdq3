@@ -1,16 +1,22 @@
 # 自动化工厂流水线模拟游戏
 
-一款**自动化工厂流水线**模拟游戏：采集矿石、冶炼金属、组装零件、研发科技、建造火箭并发射卫星。纯原生 **JavaScript + Canvas** 实现，零外部依赖，打开浏览器即可游玩。
+一款**自动化工厂流水线**模拟游戏：采集矿石、冶炼金属、组装零件、研发科技、建造火箭并发射卫星。使用 **React 18 + Vite** 构建界面（Canvas 绘制地图），核心仿真引擎为零依赖原生 JavaScript。
 
 ## 快速开始
 
-- **方式一（推荐）**：直接双击 `index.html`，浏览器中即可游玩。
-- **方式二**：在项目目录下启动本地静态服务后访问，例如：
+```bash
+npm install        # 安装依赖
+npm run dev        # 开发模式（默认 http://localhost:5173，热更新）
+npm run build      # 生产构建到 dist/
+npm run preview    # 本地预览生产构建
+```
 
-  ```bash
-  python -m http.server 8000
-  # 然后浏览器打开 http://localhost:8000
-  ```
+## 测试
+
+```bash
+npm test           # 引擎回归测试（9 个无头仿真测试文件，共 609 项断言）
+npm run test:e2e   # React UI 端到端测试（Playwright 无头浏览器，构建后运行）
+```
 
 > 存档保存在浏览器 localStorage 中（3 个手动槽位 + 1 个自动槽位），也支持导出/导入 JSON 存档文件。
 
@@ -171,17 +177,45 @@
 
 ## 技术架构
 
-纯原生 JS，无任何框架与依赖，`<script>` 标签顺序加载，兼容 `file://` 协议直接打开。
+**React 18 + Vite**：所有 DOM 界面（顶栏、工具栏、右侧面板、弹窗、科技树详情）均为 React 组件；
+Canvas 地图与仿真核心保持为零依赖原生 JS 引擎，通过 `window.FG` 命名空间与事件总线和 React 层通信。
 
 ```
-index.html          页面骨架与脚本加载入口
-css/style.css       暗色工厂主题样式
-js/core/            配置与工具（事件总线、固定步长仿真）
-js/data/            数据定义：物品、配方、建筑、科技树、地图预设
-js/game/            核心逻辑：地图、铁路、仿真、科研、统计、维修、存档、游戏主类
-js/ui/              渲染器与各 UI 面板（工具栏/信息/统计/科技树/弹窗/顶栏）
-js/main.js          启动引导：输入处理、主循环
+index.html              Vite 入口
+src/main.jsx            React 挂载
+src/App.jsx             整体布局、全局键盘快捷键、首启弹窗
+src/styles.css          暗色工厂主题样式
+src/state/
+  ui.js                 轻量界面全局状态（当前弹窗/科技树开关，useSyncExternalStore）
+  hooks.js              Game 单例、useTick（节流随仿真刷新）、useEvent/useEvents（事件订阅）
+src/components/
+  Topbar.jsx            顶栏（时间/速度/研究进度/物品资源条）
+  Toolbar.jsx           左侧建筑工具栏（分类/解锁门控）
+  MapWrap.jsx           地图区：Canvas 主循环、鼠标输入、悬浮提示、蓝图提示
+  TechTree.jsx          科技树弹窗（Canvas 节点图 + React 详情卡片）
+  icons.jsx             Canvas 图标 → 缓存 dataURL 的 React 图标组件
+src/panels/             右侧页签：信息 / 统计 / 施工 / 维修 / 合同 / 日志
+src/modals/             弹窗：新建游戏 / 存档管理 / 菜单 / 帮助 / 一键流水线
+src/engine/             核心引擎（IIFE 挂载 FG 命名空间，无任何 DOM 框架依赖）
+  config.js / utils.js  配置与工具（事件总线、固定步长仿真）
+  items/recipes/buildings/research/maps/pipelines.js  数据定义
+  map/scheduler/railway/contracts/maintenance/sim/
+  researchmgr/stats/save/blueprint/game.js            核心逻辑
+  renderer.js           Canvas 渲染器（主画布 + 图标生成）
+test/                   Node 无头引擎回归测试（vm 加载引擎脚本）+ Playwright E2E
 ```
+
+### React 与引擎如何协作
+
+- **Game 单例**：`src/state/hooks.js` 构造全局唯一 `FG.game`，等价于重构前的全局实例。
+- **单向事件驱动**：引擎状态变化通过 `FG.Events.emit(type)` 广播；组件用 `useEvents([...])`
+  订阅并在事件触发时重渲染，用 `useTick(ms)` 跟随固定步长仿真做节流刷新（默认 150–500ms）。
+- **命令式 Canvas 保持原样**：地图绘制（地形/建筑/传送带物品/列车/蓝图预览）仍是
+  `FG.Renderer` 每帧直接画；React 只负责容器、输入接线与 DOM 覆盖层（悬浮提示）。
+- **引擎零改动可测**：`src/engine/` 不依赖 React/DOM 框架，Node `vm` 直接加载，
+  609 项引擎回归断言保证仿真/物流/铁路/合同/维修/施工/存档行为与重构前完全一致。
+- **UI 状态与游戏状态分离**：弹窗开关、科技树展开等界面态放 `src/state/ui.js`，
+  游戏世界状态全部留在引擎内。
 
 ### 仿真核心
 - 固定步长仿真：每秒 20 tick，支持 0.5×~4× 速度倍率。
