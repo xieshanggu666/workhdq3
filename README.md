@@ -171,17 +171,57 @@
 
 ## 技术架构
 
-纯原生 JS，无任何框架与依赖，`<script>` 标签顺序加载，兼容 `file://` 协议直接打开。
+UI 层使用 **React 18 + Vite** 声明式组件，仿真引擎保持零依赖的原生 JavaScript。
+引擎通过事件总线（`FG.Events`）单向通知 UI，React 组件订阅事件后直接读取 `FG.game` 重渲染；
+Canvas 地图/科技树渲染器封装为 React 组件，绘制逻辑不变。
+
+### 快速开始（React 版）
+
+```bash
+npm install
+npm run dev        # 开发服务器 http://localhost:5173
+npm run build      # 生产构建到 dist/
+npm run preview    # 预览生产构建
+```
+
+- `npm test`：运行引擎无头测试（609 个断言，直接 `node` 运行，无需浏览器）。
+- `npm run test:react`：Playwright 浏览器冒烟 + 深度交互测试（需先 `npm run dev`）。
+- 重构前的纯 `<script>` 顺序加载页面归档在 `legacy/index.html`（路径已改为引用上级 `js/`、`css/`，仍可直接打开）。
+
+### 目录结构
 
 ```
-index.html          页面骨架与脚本加载入口
-css/style.css       暗色工厂主题样式
-js/core/            配置与工具（事件总线、固定步长仿真）
-js/data/            数据定义：物品、配方、建筑、科技树、地图预设
-js/game/            核心逻辑：地图、铁路、仿真、科研、统计、维修、存档、游戏主类
-js/ui/              渲染器与各 UI 面板（工具栏/信息/统计/科技树/弹窗/顶栏）
-js/main.js          启动引导：输入处理、主循环
+index.html              React 版入口（Vite）
+vite.config.js          Vite + @vitejs/plugin-react 配置
+src/
+  main.jsx              React 挂载入口
+  App.jsx               根组件：游戏单例、主循环、布局
+  engine.js             引擎引导：按依赖序 import js/ 下的传统脚本
+  hooks.js              useEventVersion / useTickThrottle（事件总线 → React）
+  components/
+    Topbar / ItemStrip / Toolbar / MapCanvas / SidePanel / TechTree / Toasts
+    ModalContext + ModalLayer + ModalBridge + modals/（新建/存档/菜单/帮助/流水线）
+    panels/             信息/统计/施工/维修/合同/日志 六个页签
+js/                     仿真引擎（零依赖，引擎代码未改动）
+  core/                 配置与工具（事件总线、固定步长仿真）
+  data/                 数据定义：物品、配方、建筑、科技树、地图预设
+  game/                 核心逻辑：地图、铁路、仿真、科研、统计、维修、存档、游戏主类
+  ui/renderer.js        Canvas 地图渲染器（纯绘制，被 React 组件复用）
+css/style.css           暗色工厂主题（原样保留，src/react.css 仅做布局适配）
+legacy/index.html       重构前的传统页面（归档对照）
+test/                   引擎无头测试（CommonJS）+ React 浏览器测试（*.cjs）
 ```
+
+### React 与引擎的边界
+
+- **引擎不动**：`js/` 下全部逻辑（固定步长 tick、物料/铁路/合同/维修/蓝图/存档）原样保留，
+  命名空间仍是全局单例 `window.FG`，609 个无头测试零修改通过。
+- **单向事件流**：引擎只 `FG.Events.emit(...)`，不引用任何 React/UI 模块；
+  `src/hooks.js` 把事件桥接成组件重渲染（高频 `sim:tick` 做了 150~500ms 节流）。
+- **命令式操作转发**：按钮/键盘回调直接调用 `game.*` 方法（如 `setRecipe`、`togglePause`），
+  状态变化仍由事件回流到界面，没有引入第二份状态。
+- **Canvas 不归 React 管像素**：`MapCanvas` / `TechTree` 只负责挂载 canvas、绑定输入与定时重绘，
+  具体绘制沿用原 Renderer。
 
 ### 仿真核心
 - 固定步长仿真：每秒 20 tick，支持 0.5×~4× 速度倍率。
